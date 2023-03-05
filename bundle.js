@@ -132820,16 +132820,106 @@ class IfcViewerAPI {
     }
 }
 
+const projects = [
+    {
+        name: "7001-BBH-ZZ-ZZ-MR-A-00001",
+        id: "1",
+        url: "IFC_files/01.ifc"
+    },
+    {
+        name: "7001-BBH-ZZ-ZZ-MR-E-00001",
+        id: "2",
+        url: "IFC_files/02.ifc"
+    },
+    {
+        name: "7001-BBH-ZZ-ZZ-MR-M-00001",
+        id: "3",
+        url: "IFC_files/03.ifc"
+    },
+    {
+        name: "Bureau UP",
+        id: "4",
+        url: "IFC_files/04.ifc"
+    },
+    {
+        name: "Model 5",
+        id: "5",
+        url: "IFC_files/05.ifc"
+    },
+];
+
 const container = document.getElementById("viewer-container");
-const viewer = new IfcViewerAPI({container, backgroundColor: new Color(200, 200, 200)});
+const viewer = new IfcViewerAPI({
+  container,
+  backgroundColor: new Color(100, 100, 100),
+});
 
 viewer.axes.setAxes();
-viewer.grid.setGrid();
+viewer.grid.setGrid(50,50);
 
 async function loadIfc(url) {
-  //await viewer.IFC.setWasmPath("node_modules/web-ifc");
-  const model = await viewer.IFC.loadIfcUrl(url);
+  const model = await viewer.IFC.loadIfcUrl(url,true);
   viewer.shadowDropper.renderShadow(model.modelID);
+  viewer.context.renderer.postProduction.active = true;
 }
-// viewer.IFC.loadIfcUrl("IFC_files\01.ifc")
- loadIfc("IFC_files/01.ifc");
+
+//Find and create the URL
+const currentUrl = window.location.href; 
+const url = new URL(currentUrl);
+const currentProjectID = url.searchParams.get("id");
+
+const currentProject = projects.find(project => project.id === currentProjectID);
+
+loadIfc(currentProject.url);
+
+// Properties menu
+window.onmousemove = () => viewer.IFC.selector.prePickIfcItem();
+
+window.ondblclick = async () => {
+  const result = await viewer.IFC.selector.pickIfcItem();
+  if (!result) return;
+  const { modelID, id } = result;
+  const props = await viewer.IFC.getProperties(modelID, id, true, false);
+  createPropertiesMenu(props);
+};
+
+const propsGUI = document.getElementById("ifc-property-menu-root");
+
+function createPropertiesMenu(properties) {
+  console.log(properties);
+
+  removeAllChildren(propsGUI);
+
+  delete properties.psets;
+  delete properties.mats;
+  delete properties.type;
+
+  for (let key in properties) {
+    createPropertyEntry(key, properties[key]);
+  }
+}
+
+function createPropertyEntry(key, value) {
+  const propContainer = document.createElement("div");
+  propContainer.classList.add("ifc-property-item");
+
+  if (value === null || value === undefined) value = "undefined";
+  else if (value.value) value = value.value;
+
+  const keyElement = document.createElement("div");
+  keyElement.textContent = key;
+  propContainer.appendChild(keyElement);
+
+  const valueElement = document.createElement("div");
+  valueElement.classList.add("ifc-property-value");
+  valueElement.textContent = value;
+  propContainer.appendChild(valueElement);
+
+  propsGUI.appendChild(propContainer);
+}
+
+function removeAllChildren(element) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
